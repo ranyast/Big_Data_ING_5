@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Thu Oct 15 12:47:29 UTC 2026:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.16.1.1 - (1901046): instance a816c00e-01a1-3f9a-736b-000005d48660 
+on database directory /home/onyxia/work/Big_Data_ING_5/07.sparksql-and-dataframes/lab/metastore_db with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@76ed5528 
+Loaded from file:/usr/local/lib/spark/jars/derby-10.16.1.1.jar
+java.vendor=Ubuntu
+java.runtime.version=21.0.12+8-1-24.04-Ubuntu
+user.dir=/home/onyxia/work/Big_Data_ING_5/07.sparksql-and-dataframes/lab
+os.name=Linux
+os.arch=amd64
+os.version=7.0.0-29-generic
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''
