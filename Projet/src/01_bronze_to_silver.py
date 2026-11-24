@@ -10,7 +10,7 @@ Regles de qualite appliquees (chaque compteur est affiche pour le rapport) :
 """
 from pyspark.sql import functions as F
 
-from common import RAW, SILVER, get_spark
+from common import RAW, SILVER, get_spark, save
 
 SPEED_MIN, SPEED_MAX = 3.0, 25.0
 
@@ -69,6 +69,6 @@ inactive = (
 )
 print(f"[quality] athletes jamais actifs : {inactive}")
 
-df.write.mode("overwrite").parquet(SILVER)
+save(df, SILVER)
 print(f"[silver] {df.count()} lignes ecrites dans {SILVER}")
 spark.stop()
