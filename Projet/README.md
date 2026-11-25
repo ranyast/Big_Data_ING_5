@@ -48,6 +48,8 @@ PYTHONPATH=src python src/02_silver_to_gold.py
 # 4. Vérification indépendante (pandas, depuis le CSV brut, sans Spark)
 python src/03_verify_pandas.py data/running_data_france_final.csv
 ```
+- **Alternative k8s** pour l'étape 1 : `kubectl apply -f k8s/job-upload-raw.yaml` (remplacer `<COMPTE>/<REPO>` par le repo public).
+- **Figures et mesures du rapport** : `python src/04_figures.py local_out/gold/running/athletes.parquet report/figures`, `LOCAL_RUN=1 python src/05_benchmark.py data/running_data_france_final.csv <dossier_temp>` (pandas vs Spark, ×1 et ×100), puis `python report/build_report.py` (génère `report/rapport.pdf`, nécessite `matplotlib reportlab`).
 - **Relance** : chaque étape écrase sa sortie (`overwrite`), donc idempotente ; relancer à partir de l'étape en échec.
 - **Test local** (sans S3) : `export LOCAL_RUN=1` avant les étapes 2 et 3 ; sorties dans `local_out/`.
 - **Résultat attendu** : 176 athlètes actifs, Pearson ≈ 0,20, Spearman ≈ 0,19, vitesse moyenne par quartile de fréquence 10,79 / 10,44 / 10,78 / 11,30 km/h. L'étape 4 doit donner les mêmes valeurs.

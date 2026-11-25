@@ -1,0 +1,57 @@
+# Depose le CSV brut dans la couche bronze du bucket Onyxia (equivalent k8s de src/00_upload_raw.sh).
+# Adapte du lab 03 (objectstorage/job-upload-bronze.yaml). Le CSV (4,5 Mo) depasse la limite de 1 Mo
+# d'un ConfigMap : un init container le recupere depuis le repo public du projet.
+#
+# Prerequis : ConfigMap `s3-config` et Secret `s3-credentials` du lab 03 (LAB_BUCKET_NAME,
+# AWS_S3_ENDPOINT, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN).
+# Usage : kubectl apply -f k8s/job-upload-raw.yaml && kubectl logs -f job/upload-running-raw
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: upload-running-raw
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: fetch
+          image: alpine/git:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              git clone --depth 1 https://github.com/<COMPTE>/<REPO>.git /repo
+              cp /repo/data/running_data_france_final.csv /data/
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: upload
+          image: amazon/aws-cli:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              aws s3 cp /data/running_data_france_final.csv \
+                "s3://$LAB_BUCKET_NAME/bronze/running/running_data_france_final.csv"
+              aws s3 ls "s3://$LAB_BUCKET_NAME/bronze/running/"
+          envFrom:
+            - configMapRef:
+                name: s3-config
+            - secretRef:
+                name: s3-credentials
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+      volumes:
+        - name: data
+          emptyDir: {}
