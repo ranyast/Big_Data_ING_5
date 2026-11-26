@@ -3,9 +3,11 @@ au volume du dataset (x1) et a un dataset 100 fois plus gros (x100).
 
 Le dataset x100 est fabrique en repliquant le CSV 100 fois avec des identifiants d'athletes
 decales (la structure et la distribution restent celles des vraies donnees).
-Resultats : temps en secondes (mediane de 3 essais), machine locale, pas le cluster.
+Resultats : temps en secondes (mediane de 3 essais) sur la machine qui execute le script.
+Le fichier x100 (~460 Mo) est cree dans <dossier_temp> : le supprimer ensuite.
 
-Usage : LOCAL_RUN=1 python src/05_benchmark.py data/running_data_france_final.csv <dossier_temp>
+Usage local : LOCAL_RUN=1 python src/05_benchmark.py data/running_data_france_final.csv <dossier_temp>
+Usage Onyxia : spark-submit src/05_benchmark.py data/running_data_france_final.csv /tmp/bench
 """
 import os
 import statistics
@@ -23,23 +25,24 @@ def make_scaled(factor: int) -> str:
     if not os.path.exists(path):
         base = pd.read_csv(SRC)
         step = int(base.athlete.max()) + 1
-        parts = []
-        for i in range(factor):
-            part = base.copy()
-            part["athlete"] = part["athlete"] + i * step
-            parts.append(part)
-        pd.concat(parts).to_csv(path, index=False)
+        # Ecriture par morceaux : memoire constante (une copie a la fois)
+        with open(path, "w", newline="") as f:
+            for i in range(factor):
+                part = base.copy()
+                part["athlete"] = part["athlete"] + i * step
+                part.to_csv(f, header=(i == 0), index=False)
     return path
 
 
 def run_pandas(path: str) -> int:
-    d = pd.read_csv(path)
+    # Seules les colonnes utiles sont lues (comme Spark, qui elague les colonnes)
+    d = pd.read_csv(path, usecols=["athlete", "distance", "duration"])
     s = d[d.distance > 0].copy()
     s["speed"] = s.distance / (s.duration / 60)
     s = s[(s.speed >= 3) & (s.speed <= 25)]
     a = s.groupby("athlete").agg(n=("speed", "size"), km=("distance", "sum"), mn=("duration", "sum"))
     a["speed"] = a.km / (a.mn / 60)
-    a["n"].corr(a["speed"], method="spearman")
+    a["n"].rank().corr(a["speed"].rank())  # Spearman sans scipy
     return len(a)
 
 
@@ -47,7 +50,9 @@ def run_spark(spark, path: str) -> int:
     from pyspark.sql import functions as F
 
     d = spark.read.csv(path, header=True, inferSchema=True)
-    s = d.filter("distance > 0").withColumn("speed", F.col("distance") / (F.col("duration") / 60))
+    s = d.filter("distance > 0 AND duration > 0").withColumn(
+        "speed", F.when(F.col("duration") > 0, F.col("distance") / (F.col("duration") / 60))
+    )
     s = s.filter((F.col("speed") >= 3) & (F.col("speed") <= 25))
     a = s.groupBy("athlete").agg(
         F.count("*").alias("n"), F.sum("distance").alias("km"), F.sum("duration").alias("mn")

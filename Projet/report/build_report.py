@@ -79,19 +79,22 @@ s += [P("2. Pipeline, choix techniques et alternatives", h2),
         "corrélations (Parquet). <i>Vérification</i> : pandas recalcule les résultats directement depuis le CSV brut, "
         "sans Spark ni silver, ce qui donne une preuve indépendante."),
       P("<b>Choix de Spark.</b> Parquet est colonnaire et typé (au contraire du CSV) et Spark lit/écrit S3 via S3A avec "
-        "les identifiants temporaires d'Onyxia. Nous avons <b>mesuré</b> l'alternative pandas seul (machine locale, "
-        "médiane de 3 essais, même agrégation ; le dataset ×100 réplique le CSV avec des identifiants d'athlètes "
-        "décalés) :")]
+        "les identifiants temporaires d'Onyxia. Nous avons <b>mesuré</b> l'alternative pandas seul <b>sur Onyxia</b> "
+        "(service vscode-pyspark, 4 CPU / 4 Go ; médiane de 3 essais, même agrégation ; le dataset ×100 réplique "
+        "le CSV avec des identifiants d'athlètes décalés ; Spark en mode <i>local[*]</i>, démarrage de la session : "
+        "7,4 s) :")]
 s += [table([
-    ["Volume", "Lignes", "CSV", "pandas", "Spark local[*]", "Mémoire pandas"],
-    ["×1 (réel)", "65 880", "4,5 Mo", "0,07 s", "1,39 s", "—"],
-    ["×100", "6 588 000", "461 Mo", "5,0 s", "12,5 s", "2,1 Go"],
-], [2.6, 2.4, 2.0, 2.2, 3.0, 3.3]),
-      P("<b>Conclusion honnête</b> : à cette taille, pandas est plus rapide (le démarrage de Spark domine à ×1, et "
-        "Spark local reste plus lent à ×100 car il tourne sur une seule machine). Nous gardons Spark parce que "
+    ["Volume", "Lignes", "CSV", "pandas", "Spark local[*]"],
+    ["×1 (réel)", "65 880", "4,4 Mo", "0,05 s", "3,67 s"],
+    ["×100", "6 588 000", "454,5 Mo", "2,54 s", "41,8 s"],
+], [3.0, 3.2, 3.0, 3.0, 3.6]),
+      P("<b>Conclusion honnête</b> : à cette taille, pandas est nettement plus rapide : Spark paie le démarrage de la "
+        "JVM et la lecture du CSV avec inférence du schéma (deux passes) et, en mode <i>local[*]</i> sur une seule "
+        "machine, ne peut pas compenser. Nous gardons Spark parce que "
         "(i) le sujet et le cours portent sur le traitement distribué et que le pipeline s'exécute sur le cluster "
-        "Onyxia, (ii) à ×100 pandas occupe déjà 2,1 Go en mémoire et cesserait de fonctionner dès que les données "
-        "dépassent la RAM, alors que Spark passe à l'échelle en ajoutant des exécuteurs. pandas est conservé "
+        "Onyxia, (ii) pandas charge tout en mémoire d'une seule machine (en local, 2,1 Go pour ×100 avec les 9 "
+        "colonnes) et cesserait de fonctionner dès que les données dépassent la RAM, alors que Spark passe à "
+        "l'échelle en ajoutant des exécuteurs. pandas est conservé "
         "pour la <i>vérification</i>. DuckDB et dbt (labs 04-05) auraient aussi convenu pour ce volume ; non retenus "
         "car Spark couvre déjà les labs 06-07 et nous n'avons pas mesuré ces outils.", body)]
 
@@ -132,11 +135,11 @@ s += [P("4. Résultats et limites", h2),
         "choix d'analyse.")]
 
 s += [P("5. Si le dataset était 100 fois plus gros", h2),
-      P("Mesuré ci-dessus (×100 = 6,6 millions de lignes, 461 Mo, 17 600 athlètes) : le résultat de l'agrégation reste "
+      P("Mesuré ci-dessus (×100 = 6,6 millions de lignes, 455 Mo, 17 600 athlètes) : le résultat de l'agrégation reste "
         "identique (le jeu ×100 est une réplication, il n'apporte pas d'information nouvelle) ; avec de vraies "
         "données 100 fois plus nombreuses, la corrélation serait estimée avec une bien meilleure précision et "
         "les sous-groupes (femmes, 55+) deviendraient exploitables. Côté ingénierie : (i) pandas "
-        "atteindrait ses limites mémoire (2,1 Go déjà), Spark distribué devient indispensable ; (ii) "
+        "atteindrait ses limites mémoire (2,1 Go mesurés en local à ×100), Spark distribué devient indispensable ; (ii) "
         "<i>inferSchema</i> relit tout le CSV : un schéma explicite est nécessaire ; (iii) Parquet partitionné "
         "par mois et lecture par colonnes ; (iv) <i>ntile</i> / <i>rank</i> avec <i>Window.orderBy</i> sans partition "
         "ramènent tout sur une seule partition : remplacer par <i>approxQuantile</i> ; (v) mettre le silver en cache "
@@ -156,8 +159,8 @@ s += [P("6. Preuves d'exécution (dossier evidence/) et initiatives", h2),
       P("<b>Initiatives</b> : mode d'exécution local (<i>LOCAL_RUN=1</i>) pour tester sans Onyxia ; vérification "
         "indépendante par pandas ; mesures pandas / Spark à ×1 et ×100 ; contrôle par sexe et par âge ; "
         "manifeste Kubernetes pour l'upload ; figures reproductibles (<i>src/04_figures.py</i>, "
-        "<i>src/05_benchmark.py</i>). Les mesures de temps proviennent d'une machine locale, pas du cluster : "
-        "elles sont à refaire sur Onyxia pour les chiffres définitifs.")]
+        "<i>src/05_benchmark.py</i>). Les temps de la section 2 ont été mesurés sur Onyxia ; "
+        "seule la mémoire de pandas (2,1 Go) provient d'une mesure en local.")]
 
 doc = SimpleDocTemplate("report/rapport.pdf", pagesize=A4, leftMargin=1.7 * cm, rightMargin=1.7 * cm,
                         topMargin=1.4 * cm, bottomMargin=1.3 * cm,
