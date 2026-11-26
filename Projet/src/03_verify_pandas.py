@@ -15,7 +15,8 @@ a = s.groupby("athlete").agg(n=("speed", "size"), km=("distance", "sum"), mn=("d
 a["speed"] = a.km / (a.mn / 60)
 print("athletes analyses :", len(a))
 print("pearson  :", round(a.n.corr(a.speed), 4))
-print("spearman :", round(a.n.corr(a.speed, method="spearman"), 4))
+# Spearman = Pearson sur les rangs moyens (evite la dependance a scipy)
+print("spearman :", round(a.n.rank().corr(a.speed.rank()), 4))
 a["q"] = pd.qcut(a.n.rank(method="first"), 4, labels=[1, 2, 3, 4])
 print(
     a.groupby("q", observed=True)
