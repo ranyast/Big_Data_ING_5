@@ -94,3 +94,14 @@ PYTHONPATH=src python src/02_silver_to_gold.py
 python src/03_verify_pandas.py data/running_data_france_final.csv
 aws s3 --profile default ls "s3://$LAB_BUCKET_NAME/" --recursive
 ```
+
+
+
+ONYXIA 
+
+![alt text](image-5.png)
+![alt text](image-6.png)
+![alt text](image-7.png)
+
+
+![alt text](image-8.png)
