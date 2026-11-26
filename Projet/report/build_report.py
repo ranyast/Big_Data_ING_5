@@ -1,6 +1,8 @@
 """Genere report/rapport.pdf (4 pages max) avec reportlab.
 Usage : python report/build_report.py   (depuis Projet/, apres src/04_figures.py)
 """
+import copy
+import io
 import os
 
 import matplotlib
@@ -10,7 +12,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 fonts = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
 pdfmetrics.registerFont(TTFont("DV", os.path.join(fonts, "DejaVuSans.ttf")))
@@ -27,6 +29,26 @@ small = ParagraphStyle("small", parent=body, fontSize=8, leading=10, textColor=M
 cell = ParagraphStyle("cell", parent=body, fontSize=8.4, leading=10.4, spaceAfter=0)
 cellb = ParagraphStyle("cellb", parent=cell, fontName="DV-B")
 TODO = '<font color="#b00020"><b>[À COMPLÉTER]</b></font>'
+
+# Mesures DuckDB sur Onyxia : remplacer par les valeurs de src/06_benchmark_duckdb.py
+DUCKDB_X1 = TODO
+DUCKDB_X100 = TODO
+DUCKDB_TEXT = TODO + " (conclusion à rédiger avec les mesures Onyxia)."
+
+# Captures du dossier evidence/ : (fichier, description). Celles qui existent sont incluses en annexe.
+EVIDENCE = [
+    ("01_upload_raw_s3.png", "Dépôt du CSV brut dans bronze/ (aws s3 cp)"),
+    ("02_spark_bronze_to_silver.png", "Spark 01_bronze_to_silver.py : compteurs de qualité, écriture silver"),
+    ("03_spark_silver_to_gold.png", "Spark 02_silver_to_gold.py : quartiles et corrélations"),
+    ("04_verification_pandas.png", "Vérification indépendante pandas (mêmes valeurs)"),
+    ("05_bucket_contenu_1.png", "Contenu du bucket (1/2) : bronze/, gold/"),
+    ("05_bucket_contenu_2.png", "Contenu du bucket (2/2) : gold/, silver/ (suite de la capture 1/2)"),
+    ("06_benchmark_pandas_spark.png", "Mesures pandas / Spark à ×1 et ×100"),
+    ("07_benchmark_duckdb.png", "Mesures DuckDB à ×1 et ×100"),
+    ("08_k8s_job_upload.png", "Job Kubernetes d'upload du brut (kubectl)"),
+]
+EVIDENCE_DIR = "evidence"
+PX_TO_CM = 17.2 / 1640  # meme echelle pour toutes les captures : texte de meme taille partout
 
 
 def table(rows, widths, header=True):
@@ -84,10 +106,10 @@ s += [P("2. Pipeline, choix techniques et alternatives", h2),
         "le CSV avec des identifiants d'athlètes décalés ; Spark en mode <i>local[*]</i>, démarrage de la session : "
         "7,4 s) :")]
 s += [table([
-    ["Volume", "Lignes", "CSV", "pandas", "Spark local[*]"],
-    ["×1 (réel)", "65 880", "4,4 Mo", "0,05 s", "3,67 s"],
-    ["×100", "6 588 000", "454,5 Mo", "2,54 s", "41,8 s"],
-], [3.0, 3.2, 3.0, 3.0, 3.6]),
+    ["Volume", "Lignes", "CSV", "pandas", "Spark local[*]", "DuckDB"],
+    ["×1 (réel)", "65 880", "4,4 Mo", "0,05 s", "3,67 s", DUCKDB_X1],
+    ["×100", "6 588 000", "454,5 Mo", "2,54 s", "41,8 s", DUCKDB_X100],
+], [2.6, 2.6, 2.6, 2.6, 3.2, 3.2]),
       P("<b>Conclusion honnête</b> : à cette taille, pandas est nettement plus rapide : Spark paie le démarrage de la "
         "JVM et la lecture du CSV avec inférence du schéma (deux passes) et, en mode <i>local[*]</i> sur une seule "
         "machine, ne peut pas compenser. Nous gardons Spark parce que "
@@ -95,8 +117,10 @@ s += [table([
         "Onyxia, (ii) pandas charge tout en mémoire d'une seule machine (en local, 2,1 Go pour ×100 avec les 9 "
         "colonnes) et cesserait de fonctionner dès que les données dépassent la RAM, alors que Spark passe à "
         "l'échelle en ajoutant des exécuteurs. pandas est conservé "
-        "pour la <i>vérification</i>. DuckDB et dbt (labs 04-05) auraient aussi convenu pour ce volume ; non retenus "
-        "car Spark couvre déjà les labs 06-07 et nous n'avons pas mesuré ces outils.", body)]
+        "pour la <i>vérification</i>. <b>DuckDB</b> (lab 04, <i>src/06_benchmark_duckdb.py</i>, même agrégation en "
+        f"SQL) a aussi été mesuré : {DUCKDB_TEXT} Il redonne exactement les mêmes corrélations (0,2015 et 0,1936), "
+        "ce qui constitue une troisième vérification. dbt (lab 05) n'a pas été mesuré : il orchestre des "
+        "requêtes SQL sur un moteur (DuckDB ici) et n'apporte pas de calcul plus rapide.", body)]
 
 s += [P("3. Problèmes de qualité des données", h2),
       table([
@@ -146,24 +170,59 @@ s += [P("5. Si le dataset était 100 fois plus gros", h2),
         "(il est lu plusieurs fois) et ajuster le nombre de partitions ; (vi) passer à Iceberg (lab 08) pour "
         "les réécritures et l'historique des versions.")]
 
-s += [P("6. Preuves d'exécution (dossier evidence/) et initiatives", h2),
-      table([
-          ["N°", "Capture (identifiant Onyxia + date/heure visibles)", "État"],
-          ["01", "Contenu du bucket : bronze/, silver/, gold/ (aws s3 ls --recursive)", TODO],
-          ["02", "Exécution de 00_upload_raw.sh / Job k8s (upload du brut)", TODO],
-          ["03", "Exécution Spark de 01_bronze_to_silver.py (compteurs de qualité)", TODO],
-          ["04", "Exécution Spark de 02_silver_to_gold.py (quartiles, corrélations)", TODO],
-          ["05", "Exécution de 03_verify_pandas.py (mêmes valeurs)", TODO],
-      ], [1.0, 13.3, 3.2]),
+present = [(f, d) for f, d in EVIDENCE if os.path.exists(os.path.join(EVIDENCE_DIR, f))]
+rows = [["Fichier (evidence/)", "Contenu", "État"]]
+for f, d in EVIDENCE:
+    ok = os.path.exists(os.path.join(EVIDENCE_DIR, f))
+    rows.append([f, d, "annexe" if ok else TODO])
+s += [P("6. Preuves d'exécution et initiatives", h2),
+      P("Toutes les captures ont été prises sur Onyxia le 26/11/2026 : chacune affiche le namespace "
+        "<b>user-r-stitou-ece</b> (<i>echo $LAB_BUCKET_NAME</i>) et la date et l'heure (<i>date</i>, en UTC) avant "
+        "la commande exécutée. Elles sont reproduites en annexe, à la même échelle."),
+      table(rows, [5.6, 9.4, 2.5]),
       Spacer(1, 3),
       P("<b>Initiatives</b> : mode d'exécution local (<i>LOCAL_RUN=1</i>) pour tester sans Onyxia ; vérification "
-        "indépendante par pandas ; mesures pandas / Spark à ×1 et ×100 ; contrôle par sexe et par âge ; "
-        "manifeste Kubernetes pour l'upload ; figures reproductibles (<i>src/04_figures.py</i>, "
-        "<i>src/05_benchmark.py</i>). Les temps de la section 2 ont été mesurés sur Onyxia ; "
+        "indépendante par pandas, puis par DuckDB ; mesures pandas / Spark / DuckDB à ×1 et ×100 ; contrôle par sexe "
+        "et par âge ; Job Kubernetes pour l'upload ; figures et rapport reproductibles (<i>src/04_figures.py</i>, "
+        "<i>report/build_report.py</i>). Les temps de la section 2 ont été mesurés sur Onyxia ; "
         "seule la mémoire de pandas (2,1 Go) provient d'une mesure en local.")]
 
-doc = SimpleDocTemplate("report/rapport.pdf", pagesize=A4, leftMargin=1.7 * cm, rightMargin=1.7 * cm,
-                        topMargin=1.4 * cm, bottomMargin=1.3 * cm,
-                        title="Fréquence des sessions et vitesse de course", author="")
-doc.build(s)
-print("report/rapport.pdf")
+# --- Annexe : captures, a la meme echelle (largeur proportionnelle a la largeur en pixels) ---------
+MAX_PAGES = 4
+
+
+def annex(scale: float) -> list:
+    """Captures presentes dans evidence/, toutes a la meme echelle `scale` (1 = pleine largeur)."""
+    if not present:
+        return []
+    from PIL import Image as PILImage
+
+    out = [P("Annexe — captures d'exécution sur Onyxia (images en pleine résolution : zoomer pour lire)", h2)]
+    for f, d in present:
+        path = os.path.join(EVIDENCE_DIR, f)
+        with PILImage.open(path) as im:
+            w_px, h_px = im.size
+        w = min(17.2, w_px * PX_TO_CM * scale) * cm
+        img = Image(path, width=w, height=w * h_px / w_px)
+        img.hAlign = "LEFT"
+        out += [KeepTogether([P(f"<b>{f}</b> — {d}", small), img, Spacer(1, 3)])]
+    return out
+
+
+def build(story: list, target) -> int:
+    doc = SimpleDocTemplate(target, pagesize=A4, leftMargin=1.7 * cm, rightMargin=1.7 * cm,
+                            topMargin=1.4 * cm, bottomMargin=1.3 * cm,
+                            title="Fréquence des sessions et vitesse de course", author="")
+    doc.build(story)
+    return doc.page
+
+
+# Plus grande echelle des captures qui tient dans MAX_PAGES pages (le sujet ne lit pas au-dela)
+for scale in [round(1 - 0.02 * i, 2) for i in range(26)]:  # 1.00, 0.98, ... 0.50
+    pages = build(copy.deepcopy(s) + annex(scale), io.BytesIO())
+    if pages <= MAX_PAGES:
+        break
+pages = build(copy.deepcopy(s) + annex(scale), "report/rapport.pdf")
+print(f"report/rapport.pdf : {pages} pages, captures a l'echelle {scale}")
+if pages > MAX_PAGES:
+    print(f"ATTENTION : plus de {MAX_PAGES} pages, les pages en trop ne seront pas lues")
