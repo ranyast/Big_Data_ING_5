@@ -32,12 +32,11 @@ TODO = '<font color="#b00020"><b>[À COMPLÉTER]</b></font>'
 
 # Mesures DuckDB sur Onyxia (src/06_benchmark_duckdb.py, 27/11/2026, capture 07)
 DUCKDB_X1 = "0,24 s"
-DUCKDB_X100 = "3,34 s"
-DUCKDB_TEXT = ("0,24 s à ×1 et 3,34 s à ×100, soit le même ordre de grandeur que pandas et environ 12 fois plus "
-               "rapide que Spark <i>local[*]</i> à ×100 (mesures prises dans une autre session Onyxia que celles "
-               "de pandas et Spark : seuls les ordres de grandeur sont comparables). Comme pandas, DuckDB tourne sur "
-               "une seule machine ; il aurait été un excellent choix à ce volume, mais ne répond pas à l'objectif de "
-               "traitement distribué du cours.")
+DUCKDB_X100 = "3,39 s"
+DUCKDB_TEXT = ("0,24 s à ×1 et 3,39 s à ×100, soit le même ordre de grandeur que pandas et environ 12 fois plus "
+               "rapide que Spark <i>local[*]</i> à ×100 (même service Onyxia, mêmes données). Comme pandas, DuckDB "
+               "tourne sur une seule machine ; il aurait été un excellent choix à ce volume, mais ne répond pas à "
+               "l'objectif de traitement distribué du cours.")
 
 # Captures du dossier evidence/ : (fichier, description). Celles qui existent sont incluses en annexe.
 EVIDENCE = [
@@ -180,7 +179,7 @@ for f, d in EVIDENCE:
     ok = os.path.exists(os.path.join(EVIDENCE_DIR, f))
     rows.append([f, d, "annexe" if ok else TODO])
 s += [P("6. Preuves d'exécution et initiatives", h2),
-      P("Toutes les captures ont été prises sur Onyxia le 26/11/2026 : chacune affiche le namespace "
+      P("Toutes les captures ont été prises sur Onyxia les 26 et 27/11/2026 : chacune affiche le namespace "
         "<b>user-r-stitou-ece</b> (<i>echo $LAB_BUCKET_NAME</i>) et la date et l'heure (<i>date</i>, en UTC) avant "
         "la commande exécutée. Elles sont reproduites en annexe, à la même échelle."),
       table(rows, [5.6, 9.4, 2.5]),
