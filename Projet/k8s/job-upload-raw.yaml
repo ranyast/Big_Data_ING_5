@@ -31,6 +31,13 @@ spec:
               git clone --depth 1 "$REPO_URL" /repo
               cp "/repo/$CSV_PATH" /data/running_data_france_final.csv
               ls -l /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
           volumeMounts:
             - name: data
               mountPath: /data
@@ -54,6 +61,7 @@ spec:
               cpu: 100m
               memory: 128Mi
             limits:
+              cpu: 500m
               memory: 256Mi
           volumeMounts:
             - name: data
