@@ -30,10 +30,14 @@ cell = ParagraphStyle("cell", parent=body, fontSize=8.4, leading=10.4, spaceAfte
 cellb = ParagraphStyle("cellb", parent=cell, fontName="DV-B")
 TODO = '<font color="#b00020"><b>[À COMPLÉTER]</b></font>'
 
-# Mesures DuckDB sur Onyxia : remplacer par les valeurs de src/06_benchmark_duckdb.py
-DUCKDB_X1 = TODO
-DUCKDB_X100 = TODO
-DUCKDB_TEXT = TODO + " (conclusion à rédiger avec les mesures Onyxia)."
+# Mesures DuckDB sur Onyxia (src/06_benchmark_duckdb.py, 27/11/2026, capture 07)
+DUCKDB_X1 = "0,24 s"
+DUCKDB_X100 = "3,34 s"
+DUCKDB_TEXT = ("0,24 s à ×1 et 3,34 s à ×100, soit le même ordre de grandeur que pandas et environ 12 fois plus "
+               "rapide que Spark <i>local[*]</i> à ×100 (mesures prises dans une autre session Onyxia que celles "
+               "de pandas et Spark : seuls les ordres de grandeur sont comparables). Comme pandas, DuckDB tourne sur "
+               "une seule machine ; il aurait été un excellent choix à ce volume, mais ne répond pas à l'objectif de "
+               "traitement distribué du cours.")
 
 # Captures du dossier evidence/ : (fichier, description). Celles qui existent sont incluses en annexe.
 EVIDENCE = [
